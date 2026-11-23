@@ -30,3 +30,11 @@ export interface Transaction {
   productName: string
   sales: number
 }
+
+export interface Kpi {
+  title: string
+  value: number
+  variation: number
+  description: string
+  format: 'currency' | 'number'
+}
