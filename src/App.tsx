@@ -1,79 +1,34 @@
-import { Box, Container, Typography } from '@mui/material'
+import { useState } from 'react'
+import { Box, Container, Grid, Stack, Typography, useMediaQuery, useTheme } from '@mui/material'
+
+import Header from './components/Header'
+import FilterBar from './components/FilterBar'
+import KpiCard from './components/KpiCard'
+import { filterOptions, kpis, transactions } from './data/sampleData'
+import type { Filters } from './types'
 
 // =====================================================================
-// ESTRUCTURA DEL PROYECTO (src/)
-// ---------------------------------------------------------------------
-//   components/  -> un archivo .tsx por componente (export default)
-//   types/       -> interfaces de TypeScript compartidas
-//   data/        -> datos de ejemplo
-//   App.tsx      -> este archivo (solo lo modifica la PERSONA A)
-//
-// REGLAS DEL EQUIPO
-//   1. Cada persona modifica SOLO sus archivos.
-//   2. B y C pueden poner sus componentes aquí para probarlos en su
-//      computadora, pero NO suben los cambios de App.tsx.
-//   3. Una rama por persona; se unen a main con Pull Request.
-//      Orden: primero B y C, al final A.
+// PENDIENTE (Víctor): reemplazar cada Placeholder por su componente.
+//   ChartCard.tsx         -> title, subtitle, children
+//   TransactionsTable.tsx -> columns, rows (Transaction[]), pageSize   [escritorio]
+//   TransactionCard.tsx   -> transaction (Transaction)                 [móvil]
+//   Pagination.tsx        -> currentPage, totalItems, onPageChange, compact
+// Los datos ya están listos: usar visibleTransactions e isMobile.
 // =====================================================================
 
-// =====================================================================
-// PERSONA A: Estructura, estado y diseño responsivo
-// ---------------------------------------------------------------------
-// [ ] src/types/   -> interfaces compartidas: Filters, FilterOptions,
-//                     Transaction, etc.
-// [ ] src/data/    -> datos de ejemplo: valores de los KPIs, lista de
-//                     pedidos, años y regiones disponibles.
-// [ ] useState de los filtros, por ejemplo:
-//       const [filters, setFilters] = useState<Filters>({ year: 'all', region: 'all' })
-//     y mostrar en pantalla que el valor cambia (por ejemplo, en el subtítulo).
-// [ ] isMobile con useMediaQuery de MUI (pantallas menores a 768 px).
-// [ ] Organizar la pantalla con Grid de MUI:
-//       Escritorio: KPIs en fila, serie temporal a la izquierda,
-//                   barras y dona a la derecha, tabla abajo.
-//       Móvil:      todo en una sola columna; Ventas Totales a todo el ancho.
-// [ ] Reemplazar cada Box provisional de abajo por el componente real
-//     cuando B y C lo hayan subido.
-// [ ] Tema oscuro en src/main.tsx.
-// =====================================================================
-
-// =====================================================================
-// PERSONA B: Parte superior (src/components/)
-// ---------------------------------------------------------------------
-// [ ] Header.tsx    -> props: title (string), subtitle (string)
-// [ ] FilterBar.tsx -> props: filters (Filters), options (FilterOptions),
-//                      onFilterChange (función)
-//                      Selectores de Año y Región con Select de MUI.
-// [ ] KpiCard.tsx   -> props: title (string), value (number),
-//                      variation (number), description (string),
-//                      featured (boolean, opcional: ocupa todo el ancho en móvil)
-// =====================================================================
-
-// =====================================================================
-// PERSONA C: Parte inferior (src/components/)
-// ---------------------------------------------------------------------
-// [ ] ChartCard.tsx         -> props: title (string), subtitle (string),
-//                              children (ReactNode)
-//                              Por ahora, children puede ser un texto
-//                              "Gráfico próximamente".
-// [ ] TransactionsTable.tsx -> props: columns (arreglo), rows (Transaction[]),
-//                              pageSize (number)  [versión escritorio]
-// [ ] TransactionCard.tsx   -> props: transaction (Transaction)  [versión móvil]
-// [ ] Pagination.tsx        -> props: currentPage (number), totalItems (number),
-//                              onPageChange (función), compact (boolean, opcional)
-// =====================================================================
-
-// Caja provisional para marcar dónde irá cada componente.
-// PERSONA A: borrarla cuando todos los componentes reales estén listos.
-function Placeholder({ label }: { label: string }) {
+// Caja provisional para marcar dónde irá un componente que aún no existe.
+function Placeholder({ label, minHeight = 120 }: { label: string; minHeight?: number }) {
   return (
     <Box
       sx={{
         p: 2,
-        mb: 2,
+        height: '100%',
+        minHeight,
         border: '1px dashed',
         borderColor: 'divider',
         borderRadius: 2,
         color: 'text.secondary',
+        fontSize: 14,
       }}
     >
       {label}
@@ -81,24 +36,95 @@ function Placeholder({ label }: { label: string }) {
   )
 }
 
+
+function describeFilters(filters: Filters): string {
+  const { years } = filterOptions
+  const period =
+    filters.year === 'all'
+      ? `${Math.min(...years)} - ${Math.max(...years)}`
+      : `Año ${filters.year}`
+  const region = filters.region === 'all' ? 'Todas las regiones' : `Región ${filters.region}`
+  return `Resumen comercial · ${period} · ${region}`
+}
+
 function App() {
+
+  const [filters, setFilters] = useState<Filters>({ year: 'all', region: 'all' })
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
+  const visibleTransactions = transactions.filter((t) => {
+    const matchesYear = filters.year === 'all' || t.orderDate.startsWith(String(filters.year))
+    const matchesRegion = filters.region === 'all' || t.region === filters.region
+    return matchesYear && matchesRegion
+  })
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Typography variant="overline" color="text.secondary">
-        Base del proyecto: cada caja se reemplaza por su componente
-      </Typography>
+      {/* 1-2. Encabezado con los filtros a la derecha (debajo del título en móvil) */}
+      <Header
+        title="Dashboard de Ventas - Superstore"
+        subtitle={describeFilters(filters)}
+        actions={
+          <FilterBar filters={filters} options={filterOptions} onFilterChange={setFilters} />
+        }
+      />
 
-      {/* ---------- PERSONA B ---------- */}
-      <Placeholder label="1. Header (Persona B)" />
-      <Placeholder label="2. FilterBar: Año y Región (Persona B)" />
-      <Placeholder label="3. KpiCard ×3: Ventas Totales, Cantidad de Pedidos, Ticket Promedio (Persona B)" />
+      {/* 3. KPIs: grilla CSS. Escritorio: 3 columnas. Móvil: 2 columnas y la
+             primera tarjeta (featured) ocupa todo el ancho. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        {kpis.map((kpi, index) => (
+          <KpiCard key={kpi.title} {...kpi} featured={index === 0} />
+        ))}
+      </Box>
 
-      {/* ---------- PERSONA C ---------- */}
-      <Placeholder label="4. ChartCard: Serie Temporal de Ventas Mensuales (Persona C)" />
-      <Placeholder label="4. ChartCard: Ventas por Subcategoría (Persona C)" />
-      <Placeholder label="4. ChartCard: Porcentaje de Ventas por Estado (Persona C)" />
-      <Placeholder label="8. TransactionsTable / 10. TransactionCard en móvil (Persona C)" />
-      <Placeholder label="9. Pagination (Persona C)" />
+      {/* 4-7. Gráficos. Escritorio: serie temporal a la izquierda; barras y dona
+               apiladas a la derecha. Móvil: uno debajo de otro. */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <Placeholder label="ChartCard: Serie Temporal de Ventas Mensuales" minHeight={isMobile ? 260 : 400} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 5 }}>
+          <Stack spacing={2} sx={{ height: '100%' }}>
+            <Placeholder label="ChartCard: Ventas por Subcategoría" minHeight={190} />
+            <Placeholder label="ChartCard: Porcentaje de Ventas por Estado" minHeight={190} />
+          </Stack>
+        </Grid>
+      </Grid>
+
+      {/* 8-10. Pedidos: tabla en escritorio, tarjetas en móvil */}
+      <Placeholder
+        label={
+          isMobile
+            ? `TransactionCard × ${visibleTransactions.length} (vista móvil) + Pagination compacta`
+            : `TransactionsTable: ${visibleTransactions.length} pedidos (vista escritorio) + Pagination`
+        }
+        minHeight={isMobile ? 200 : 260}
+      />
+
+      {/* Pie de página */}
+      <Box
+        component="footer"
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          mt: 3,
+          color: 'text.secondary',
+        }}
+      >
+        <Typography variant="caption">Superstore Sales · Datos ilustrativos</Typography>
+        <Typography variant="caption" sx={{ display: { xs: 'none', md: 'block' } }}>
+          Importes en USD
+        </Typography>
+      </Box>
     </Container>
   )
 }
