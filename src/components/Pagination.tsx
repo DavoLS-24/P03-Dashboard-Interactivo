@@ -41,3 +41,5 @@ function Pagination({ currentPage, totalItems, onPageChange, compact = false, pa
     />
   )
 }
+
+export default Pagination
