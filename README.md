@@ -56,10 +56,19 @@ Al aplicar un filtro se actualizan los KPIs, los gráficos y la tabla. En la ver
 ```
 P03-Dashboard-Interactivo/
 ├── README.md
-└── sprint1-datos/
-    ├── converter.py    # Script de transformación CSV → JSON
-    ├── train.csv       # Dataset original
-    └── output.json     # Dataset transformado (generado por el script)
+├── index.html            # Página base de la app
+├── package.json          # Dependencias y scripts
+├── sprint1-datos/
+│   ├── converter.py      # Script de transformación CSV → JSON
+│   ├── train.csv         # Dataset original
+│   └── output.json       # Dataset transformado (generado por el script)
+└── src/
+    ├── main.tsx          # Punto de entrada: aplica el tema de Material UI
+    ├── theme.ts          # Tema oscuro y punto de cambio a móvil (768 px)
+    ├── App.tsx           # Componente principal: filtros (useState) y distribución
+    ├── components/       # Componentes reutilizables del dashboard
+    ├── data/             # Datos de ejemplo
+    └── types/            # Tipos de TypeScript compartidos
 ```
  
 
@@ -122,7 +131,7 @@ Requisitos: Python 3.8 o superior. No necesita instalar librerías (solo usa `cs
  
 ```bash
 git clone https://github.com/DavoLS-24/P03-Dashboard-Interactivo.git
-cd P03-Dashboard-Interactivo
+cd P03-Dashboard-Interactivo/sprint1-datos
 python converter.py
 ```
  
@@ -132,3 +141,17 @@ python converter.py
 Convertidos 9800 registros a output.json
 ```
  
+## Sprint 2: Componentes React con Material UI
+
+Proyecto en **React + Vite + TypeScript** con **Material UI**, usando datos de ejemplo de `output.json`.
+
+- **Componentes:** `Header`, `FilterBar`, `KpiCard`, `ChartCard`, `TransactionsTable`, `TransactionCard` y `Pagination` (en `src/components/`). Los gráficos se agregarán en el siguiente sprint.
+- **Interacción:** los filtros de Año y Región se guardan con `useState` y actualizan el subtítulo y la tabla.
+- **Responsivo:** en móvil (menos de 768 px) todo pasa a una columna y la tabla se muestra como tarjetas.
+
+### Cómo ejecutar
+
+```bash
+npm install
+npm run dev
+```

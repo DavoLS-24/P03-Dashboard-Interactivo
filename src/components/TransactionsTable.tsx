@@ -24,7 +24,7 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 function TransactionsTable({ columns, rows, pageSize }: TransactionsTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const theme = useTheme()
-  const mobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const mobile = useMediaQuery(theme.breakpoints.down('md'))
   const safePageSize = Math.max(1, pageSize)
   const pageCount = Math.ceil(rows.length / safePageSize)
   const page = Math.min(currentPage, Math.max(1, pageCount))
@@ -74,3 +74,5 @@ function TransactionsTable({ columns, rows, pageSize }: TransactionsTableProps) 
     </Box>
   )
 }
+
+export default TransactionsTable

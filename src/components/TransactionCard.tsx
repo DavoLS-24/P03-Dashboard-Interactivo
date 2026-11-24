@@ -38,3 +38,5 @@ function TransactionCard({ transaction }: TransactionCardProps) {
     </Paper>
   )
 }
+
+export default TransactionCard

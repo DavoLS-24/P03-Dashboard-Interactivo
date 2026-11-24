@@ -23,3 +23,5 @@ function ChartCard({ title, subtitle, children }: ChartCardProps) {
     </Card>
   )
 }
+
+export default ChartCard
