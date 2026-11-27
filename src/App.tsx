@@ -1,41 +1,97 @@
-import { useState } from 'react'
-import { Box, Container, Grid, Stack, Typography, useMediaQuery, useTheme } from '@mui/material'
+import { useMemo, useState } from 'react'
+import {
+  Alert,
+  Box,
+  CircularProgress,
+  Container,
+  Grid,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material'
 
 import Header from './components/Header'
 import FilterBar from './components/FilterBar'
 import KpiCard from './components/KpiCard'
 import ChartCard from './components/ChartCard'
 import TransactionsTable from './components/TransactionsTable'
-import { filterOptions, kpis, transactions } from './data/sampleData'
-import type { Filters } from './types'
+import LineChart from './components/LineChart'
+import BarChart from './components/BarChart'
+import DonutChart from './components/DonutChart'
+import useFetchData from './hooks/useFetchData'
+import { monthlySales, salesBySubCategory, salesByState, yearTotals } from './utils/chartData'
+import type { FilterOptions, Filters, Kpi, Region, Transaction } from './types'
 
 // Columnas de la tabla de pedidos (versión escritorio)
 const tableColumns = ['Order ID', 'Order Date', 'Customer Name', 'Category', 'Sub-Category', 'Sales']
+const REGION_ORDER: Region[] = ['West', 'East', 'Central', 'South']
 
-// Espacio reservado dentro de ChartCard: los gráficos se implementan en el siguiente sprint
-function ChartPlaceholder({ height }: { height: number }) {
-  return (
-    <Box
-      sx={{
-        height,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: '1px dashed',
-        borderColor: 'divider',
-        borderRadius: 2,
-        color: 'text.secondary',
-        fontSize: 13,
-      }}
-    >
-      Gráfico próximamente
-    </Box>
-  )
+// ---------- Cálculos a partir de los registros de Firebase ----------
+
+const yearOf = (t: Transaction) => Number(t.orderDate.slice(0, 4))
+
+// Años y regiones que existen en los datos
+function getFilterOptions(data: Transaction[]): FilterOptions {
+  const years = [...new Set(data.map(yearOf))].sort((a, b) => a - b)
+  const regions = REGION_ORDER.filter((r) => data.some((t) => t.region === r))
+  return { years, regions }
 }
 
+function matches(t: Transaction, year: number | 'all', region: Region | 'all') {
+  return (year === 'all' || yearOf(t) === year) && (region === 'all' || t.region === region)
+}
 
-function describeFilters(filters: Filters): string {
-  const { years } = filterOptions
+// Ventas totales, pedidos distintos y ticket promedio
+function summarize(rows: Transaction[]) {
+  const sales = rows.reduce((sum, t) => sum + t.sales, 0)
+  const orders = new Set(rows.map((t) => t.orderId)).size
+  return { sales, orders, ticket: orders ? sales / orders : 0 }
+}
+
+// Variación porcentual respecto al valor anterior (1 decimal)
+function variation(current: number, previous: number) {
+  return previous ? Math.round(((current - previous) / previous) * 1000) / 10 : 0
+}
+
+// KPIs del período filtrado, comparados con el año anterior
+function buildKpis(data: Transaction[], filters: Filters, years: number[]): Kpi[] {
+  const current = summarize(data.filter((t) => matches(t, filters.year, filters.region)))
+
+  // Año que se compara: el elegido, o el último si se ven todos los años
+  const lastYear = years[years.length - 1]
+  const compareYear = filters.year === 'all' ? lastYear : filters.year
+  const hasPrevious = years.includes(compareYear - 1)
+  const thisYear = summarize(data.filter((t) => matches(t, compareYear, filters.region)))
+  const prevYear = summarize(data.filter((t) => matches(t, compareYear - 1, filters.region)))
+  const description = hasPrevious ? `${compareYear} vs. ${compareYear - 1}` : 'sin año anterior'
+
+  return [
+    {
+      title: 'Ventas Totales',
+      value: current.sales,
+      variation: hasPrevious ? variation(thisYear.sales, prevYear.sales) : 0,
+      description,
+      format: 'currency',
+    },
+    {
+      title: 'Cantidad de Pedidos',
+      value: current.orders,
+      variation: hasPrevious ? variation(thisYear.orders, prevYear.orders) : 0,
+      description,
+      format: 'number',
+    },
+    {
+      title: 'Ticket Promedio',
+      value: current.ticket,
+      variation: hasPrevious ? variation(thisYear.ticket, prevYear.ticket) : 0,
+      description,
+      format: 'currency',
+    },
+  ]
+}
+
+function describeFilters(filters: Filters, years: number[]): string {
   const period =
     filters.year === 'all'
       ? `${Math.min(...years)} - ${Math.max(...years)}`
@@ -45,72 +101,134 @@ function describeFilters(filters: Filters): string {
 }
 
 function App() {
+  // Datos de Firebase: se consultan al cargar la app (useEffect dentro del hook)
+  const { data, loading, error } = useFetchData()
 
+  // Filtros elegidos por el usuario
   const [filters, setFilters] = useState<Filters>({ year: 'all', region: 'all' })
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
-  const visibleTransactions = transactions.filter((t) => {
-    const matchesYear = filters.year === 'all' || t.orderDate.startsWith(String(filters.year))
-    const matchesRegion = filters.region === 'all' || t.region === filters.region
-    return matchesYear && matchesRegion
-  })
+  // useMemo evita recalcular sobre ~10.000 registros en cada render
+  const options = useMemo(() => getFilterOptions(data), [data])
+
+  const kpis = useMemo(
+    () => (data.length ? buildKpis(data, filters, options.years) : []),
+    [data, filters, options.years],
+  )
+
+  // Pedidos filtrados, del más reciente al más antiguo
+  const visibleTransactions = useMemo(
+    () =>
+      data
+        .filter((t) => matches(t, filters.year, filters.region))
+        .sort((a, b) => b.orderDate.localeCompare(a.orderDate) || b.rowId - a.rowId),
+    [data, filters],
+  )
+
+  // Datos de los gráficos (se recalculan al cambiar los filtros)
+  const charts = useMemo(
+    () => ({
+      monthly: monthlySales(visibleTransactions),
+      years: yearTotals(visibleTransactions),
+      subCategories: salesBySubCategory(visibleTransactions),
+      states: salesByState(visibleTransactions),
+    }),
+    [visibleTransactions],
+  )
+  // Texto del período para los subtítulos de los gráficos
+  const period =
+    filters.year !== 'all'
+      ? `Año ${filters.year}`
+      : options.years.length
+        ? `${options.years[0]} - ${options.years[options.years.length - 1]}`
+        : ''
+  const regionText = filters.region === 'all' ? 'Todas las regiones' : `Región ${filters.region}`
+
+  const ready = !loading && !error && data.length > 0
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      {/* 1-2. Encabezado con los filtros a la derecha (debajo del título en móvil) */}
+      {/* 1-2. Encabezado con los filtros (se muestran cuando ya hay datos) */}
       <Header
         title="Dashboard de Ventas - Superstore"
-        subtitle={describeFilters(filters)}
+        subtitle={ready ? describeFilters(filters, options.years) : 'Resumen comercial'}
         actions={
-          <FilterBar filters={filters} options={filterOptions} onFilterChange={setFilters} />
+          ready ? (
+            <FilterBar filters={filters} options={options} onFilterChange={setFilters} />
+          ) : undefined
         }
       />
 
-      {/* 3. KPIs: grilla CSS. Escritorio: 3 columnas. Móvil: 2 columnas y la
-             primera tarjeta (featured) ocupa todo el ancho. */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-          gap: 2,
-          mb: 2,
-        }}
-      >
-        {kpis.map((kpi, index) => (
-          <KpiCard key={kpi.title} {...kpi} featured={index === 0} />
-        ))}
-      </Box>
+      {/* Estado de carga */}
+      {loading && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, py: 10 }}>
+          <CircularProgress size={28} />
+          <Typography sx={{ color: 'text.secondary' }}>Cargando datos desde Firebase…</Typography>
+        </Box>
+      )}
 
-      {/* 4-7. Gráficos. Escritorio: serie temporal a la izquierda; barras y dona
-               apiladas a la derecha. Móvil: uno debajo de otro. */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, md: 7 }}>
-          <ChartCard
-            title="Serie Temporal de Ventas Mensuales"
-            subtitle="Evolución mensual de las ventas"
+      {/* Estado de error */}
+      {!loading && error && (
+        <Alert severity="error" sx={{ my: 4 }}>
+          No se pudieron cargar los datos: {error}
+        </Alert>
+      )}
+
+      {/* Consulta correcta pero sin registros */}
+      {!loading && !error && data.length === 0 && (
+        <Alert severity="info" sx={{ my: 4 }}>
+          La base de datos no tiene registros.
+        </Alert>
+      )}
+
+      {ready && (
+        <>
+          {/* 3. KPIs: grilla CSS. Escritorio: 3 columnas. Móvil: 2 columnas y la
+                 primera tarjeta (featured) ocupa todo el ancho. */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+              gap: 2,
+              mb: 2,
+            }}
           >
-            <ChartPlaceholder height={isMobile ? 200 : 320} />
-          </ChartCard>
-        </Grid>
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Stack spacing={2} sx={{ height: '100%' }}>
-            <ChartCard title="Ventas por Subcategoría" subtitle="Principales subcategorías · Ventas en USD">
-              <ChartPlaceholder height={110} />
-            </ChartCard>
-            <ChartCard title="Porcentaje de Ventas por Estado" subtitle="Distribución sobre el total de ventas">
-              <ChartPlaceholder height={110} />
-            </ChartCard>
-          </Stack>
-        </Grid>
-      </Grid>
+            {kpis.map((kpi, index) => (
+              <KpiCard key={kpi.title} {...kpi} featured={index === 0} />
+            ))}
+          </Box>
 
-      {/* 8-10. Pedidos: tabla en escritorio y tarjetas (TransactionCard) en móvil.
-               Se filtran según el estado "filters". */}
-      <ChartCard title="Últimos Registros de Pedidos" subtitle="Vista detallada de los pedidos más recientes">
-        <TransactionsTable columns={tableColumns} rows={visibleTransactions} pageSize={5} />
-      </ChartCard>
+          {/* 4-7. Gráficos. Escritorio: serie temporal a la izquierda; barras y dona
+                   apiladas a la derecha. Móvil: uno debajo de otro. */}
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <ChartCard
+                title="Serie Temporal de Ventas Mensuales"
+                subtitle={`Evolución mensual · ${period} · ${regionText}`}
+              >
+                <LineChart data={charts.monthly} yearTotals={charts.years} height={isMobile ? 220 : 380} />
+              </ChartCard>
+            </Grid>
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Stack spacing={2} sx={{ height: '100%' }}>
+                <ChartCard title="Ventas por Subcategoría" subtitle="6 principales subcategorías · Ventas en USD">
+                  <BarChart data={charts.subCategories} limit={6} height={isMobile ? 210 : 190} />
+                </ChartCard>
+                <ChartCard title="Porcentaje de Ventas por Estado" subtitle="Distribución sobre el total de ventas">
+                  <DonutChart data={charts.states} size={isMobile ? 130 : 140} />
+                </ChartCard>
+              </Stack>
+            </Grid>
+          </Grid>
+
+          {/* 8-10. Pedidos: tabla en escritorio y tarjetas (TransactionCard) en móvil */}
+          <ChartCard title="Últimos Registros de Pedidos" subtitle="Del pedido más reciente al más antiguo">
+            <TransactionsTable columns={tableColumns} rows={visibleTransactions} pageSize={5} />
+          </ChartCard>
+        </>
+      )}
 
       {/* Pie de página */}
       <Box
@@ -122,7 +240,7 @@ function App() {
           color: 'text.secondary',
         }}
       >
-        <Typography variant="caption">Superstore Sales · Datos ilustrativos</Typography>
+        <Typography variant="caption">Superstore Sales · Datos de Firebase Realtime Database</Typography>
         <Typography variant="caption" sx={{ display: { xs: 'none', md: 'block' } }}>
           Importes en USD
         </Typography>
