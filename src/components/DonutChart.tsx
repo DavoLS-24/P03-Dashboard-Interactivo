@@ -7,7 +7,6 @@ interface DonutChartProps {
   size?: number
 }
 
-// Dona con el porcentaje de ventas por estado y su leyenda al lado
 function DonutChart({ data, size = 150 }: DonutChartProps) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -28,7 +27,6 @@ function DonutChart({ data, size = 150 }: DonutChartProps) {
             },
           ]}
         />
-        {/* Texto en el centro de la dona */}
         <Box
           sx={{
             position: 'absolute',
@@ -49,7 +47,6 @@ function DonutChart({ data, size = 150 }: DonutChartProps) {
         </Box>
       </Box>
 
-      {/* Leyenda */}
       <Box sx={{ flex: 1, minWidth: 0, display: 'grid', gap: 0.75 }}>
         {data.map((d) => (
           <Box key={d.state} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

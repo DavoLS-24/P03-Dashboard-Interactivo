@@ -1,6 +1,5 @@
 import type { Transaction } from '../types'
 
-// Colores de los gráficos (verde de acento del tema y grises del prototipo)
 export const ACCENT = '#5FD3A6'
 export const GREYS = ['#7C8AA0', '#5B6676', '#46505E', '#2E3540']
 
@@ -11,7 +10,6 @@ export function formatCompactMoney(value: number): string {
   return `$${Math.round(value)}`
 }
 
-// Suma las ventas agrupando por la clave que devuelve keyOf
 function sumBy(rows: Transaction[], keyOf: (t: Transaction) => string): Map<string, number> {
   const totals = new Map<string, number>()
   for (const t of rows) {
@@ -21,7 +19,6 @@ function sumBy(rows: Transaction[], keyOf: (t: Transaction) => string): Map<stri
   return totals
 }
 
-// ---------- Serie temporal ----------
 export interface MonthlySales {
   month: Date
   sales: number
@@ -46,7 +43,6 @@ export function monthlySales(rows: Transaction[]): MonthlySales[] {
   while (y < lastYear || (y === lastYear && m <= lastMonth)) {
     const key = `${y}-${String(m).padStart(2, '0')}`
     result.push({ month: new Date(y, m - 1, 1), sales: totals.get(key) ?? 0 })
-    // Pasar al mes siguiente
     if (m === 12) {
       y++
       m = 1
@@ -57,7 +53,6 @@ export function monthlySales(rows: Transaction[]): MonthlySales[] {
   return result
 }
 
-// Total de ventas de cada año
 export function yearTotals(rows: Transaction[]): YearTotal[] {
   const totals = sumBy(rows, (t) => t.orderDate.slice(0, 4))
   return [...totals.entries()]
@@ -65,27 +60,24 @@ export function yearTotals(rows: Transaction[]): YearTotal[] {
     .sort((a, b) => a.year - b.year)
 }
 
-// ---------- Barras ----------
 export interface NamedValue {
   name: string
   value: number
 }
 
-// Ventas por subcategoría, de mayor a menor
 export function salesBySubCategory(rows: Transaction[]): NamedValue[] {
   return [...sumBy(rows, (t) => t.subCategory).entries()]
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 }
 
-// ---------- Dona ----------
 export interface StateShare {
   state: string
   percentage: number
   color: string
 }
 
-// Porcentaje de ventas de los estados principales; el resto se agrupa en "Otros estados"
+// Los estados que no están entre los principales se agrupan en "Otros estados"
 export function salesByState(rows: Transaction[], top = 4): StateShare[] {
   const total = rows.reduce((sum, t) => sum + t.sales, 0)
   if (!total) return []

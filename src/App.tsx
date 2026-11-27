@@ -23,15 +23,11 @@ import useFetchData from './hooks/useFetchData'
 import { monthlySales, salesBySubCategory, salesByState, yearTotals } from './utils/chartData'
 import type { FilterOptions, Filters, Kpi, Region, Transaction } from './types'
 
-// Columnas de la tabla de pedidos (versión escritorio)
 const tableColumns = ['Order ID', 'Order Date', 'Customer Name', 'Category', 'Sub-Category', 'Sales']
 const REGION_ORDER: Region[] = ['West', 'East', 'Central', 'South']
 
-// ---------- Cálculos a partir de los registros de Firebase ----------
-
 const yearOf = (t: Transaction) => Number(t.orderDate.slice(0, 4))
 
-// Años y regiones que existen en los datos
 function getFilterOptions(data: Transaction[]): FilterOptions {
   const years = [...new Set(data.map(yearOf))].sort((a, b) => a - b)
   const regions = REGION_ORDER.filter((r) => data.some((t) => t.region === r))
@@ -42,23 +38,20 @@ function matches(t: Transaction, year: number | 'all', region: Region | 'all') {
   return (year === 'all' || yearOf(t) === year) && (region === 'all' || t.region === region)
 }
 
-// Ventas totales, pedidos distintos y ticket promedio
 function summarize(rows: Transaction[]) {
   const sales = rows.reduce((sum, t) => sum + t.sales, 0)
   const orders = new Set(rows.map((t) => t.orderId)).size
   return { sales, orders, ticket: orders ? sales / orders : 0 }
 }
 
-// Variación porcentual respecto al valor anterior (1 decimal)
 function variation(current: number, previous: number) {
   return previous ? Math.round(((current - previous) / previous) * 1000) / 10 : 0
 }
 
-// KPIs del período filtrado, comparados con el año anterior
 function buildKpis(data: Transaction[], filters: Filters, years: number[]): Kpi[] {
   const current = summarize(data.filter((t) => matches(t, filters.year, filters.region)))
 
-  // Año que se compara: el elegido, o el último si se ven todos los años
+  // La variación compara el año elegido (o el último) con el anterior
   const lastYear = years[years.length - 1]
   const compareYear = filters.year === 'all' ? lastYear : filters.year
   const hasPrevious = years.includes(compareYear - 1)
@@ -101,16 +94,14 @@ function describeFilters(filters: Filters, years: number[]): string {
 }
 
 function App() {
-  // Datos de Firebase: se consultan al cargar la app (useEffect dentro del hook)
+
   const { data, loading, error } = useFetchData()
 
-  // Filtros elegidos por el usuario
   const [filters, setFilters] = useState<Filters>({ year: 'all', region: 'all' })
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
-  // useMemo evita recalcular sobre ~10.000 registros en cada render
   const options = useMemo(() => getFilterOptions(data), [data])
 
   const kpis = useMemo(
@@ -118,7 +109,6 @@ function App() {
     [data, filters, options.years],
   )
 
-  // Pedidos filtrados, del más reciente al más antiguo
   const visibleTransactions = useMemo(
     () =>
       data
@@ -127,7 +117,6 @@ function App() {
     [data, filters],
   )
 
-  // Datos de los gráficos (se recalculan al cambiar los filtros)
   const charts = useMemo(
     () => ({
       monthly: monthlySales(visibleTransactions),
@@ -137,7 +126,6 @@ function App() {
     }),
     [visibleTransactions],
   )
-  // Texto del período para los subtítulos de los gráficos
   const period =
     filters.year !== 'all'
       ? `Año ${filters.year}`
@@ -150,7 +138,6 @@ function App() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      {/* 1-2. Encabezado con los filtros (se muestran cuando ya hay datos) */}
       <Header
         title="Dashboard de Ventas - Superstore"
         subtitle={ready ? describeFilters(filters, options.years) : 'Resumen comercial'}
@@ -161,7 +148,6 @@ function App() {
         }
       />
 
-      {/* Estado de carga */}
       {loading && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, py: 10 }}>
           <CircularProgress size={28} />
@@ -169,14 +155,12 @@ function App() {
         </Box>
       )}
 
-      {/* Estado de error */}
       {!loading && error && (
         <Alert severity="error" sx={{ my: 4 }}>
           No se pudieron cargar los datos: {error}
         </Alert>
       )}
 
-      {/* Consulta correcta pero sin registros */}
       {!loading && !error && data.length === 0 && (
         <Alert severity="info" sx={{ my: 4 }}>
           La base de datos no tiene registros.
@@ -185,8 +169,7 @@ function App() {
 
       {ready && (
         <>
-          {/* 3. KPIs: grilla CSS. Escritorio: 3 columnas. Móvil: 2 columnas y la
-                 primera tarjeta (featured) ocupa todo el ancho. */}
+          {/* Grilla CSS: en móvil la primera tarjeta (featured) ocupa todo el ancho */}
           <Box
             sx={{
               display: 'grid',
@@ -200,8 +183,6 @@ function App() {
             ))}
           </Box>
 
-          {/* 4-7. Gráficos. Escritorio: serie temporal a la izquierda; barras y dona
-                   apiladas a la derecha. Móvil: uno debajo de otro. */}
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid size={{ xs: 12, md: 7 }}>
               <ChartCard
@@ -223,14 +204,12 @@ function App() {
             </Grid>
           </Grid>
 
-          {/* 8-10. Pedidos: tabla en escritorio y tarjetas (TransactionCard) en móvil */}
           <ChartCard title="Últimos Registros de Pedidos" subtitle="Del pedido más reciente al más antiguo">
             <TransactionsTable columns={tableColumns} rows={visibleTransactions} pageSize={5} />
           </ChartCard>
         </>
       )}
 
-      {/* Pie de página */}
       <Box
         component="footer"
         sx={{

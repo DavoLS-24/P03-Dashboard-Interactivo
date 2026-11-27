@@ -2,12 +2,9 @@ import { get, ref } from 'firebase/database'
 import { database } from '../firebase/firebase'
 import type { Region, Transaction } from '../types'
 
-// Ruta de los registros dentro de la base de datos.
-// '/' = la raíz, porque output.json se importó directamente.
-// Si los registros estuvieran dentro de un nodo (por ejemplo "ventas"), cambiar a 'ventas'.
+// output.json se importó en la raíz de la base de datos
 const DATA_PATH = '/'
 
-// Forma de cada registro tal como está guardado en Firebase (claves de output.json)
 interface RegistroFirebase {
   'Row ID': number
   'Order ID': string
@@ -29,7 +26,7 @@ interface RegistroFirebase {
   Sales: number
 }
 
-// Convierte las claves de Firebase ("Order ID") al formato del proyecto (orderId)
+// Claves de Firebase ("Order ID") -> formato del proyecto (orderId)
 function toTransaction(r: RegistroFirebase): Transaction {
   return {
     rowId: r['Row ID'],
@@ -53,7 +50,6 @@ function toTransaction(r: RegistroFirebase): Transaction {
   }
 }
 
-// Lee una sola vez todos los registros de ventas desde Realtime Database
 export async function obtenerVentas(): Promise<Transaction[]> {
   if (!database) {
     throw new Error(
@@ -66,7 +62,6 @@ export async function obtenerVentas(): Promise<Transaction[]> {
     return []
   }
 
-  // Firebase devuelve un arreglo (o un objeto si las claves no son consecutivas)
   const valor = snapshot.val() as RegistroFirebase[] | Record<string, RegistroFirebase>
   return Object.values(valor)
     .filter((r): r is RegistroFirebase => r != null && typeof r === 'object' && 'Order ID' in r)

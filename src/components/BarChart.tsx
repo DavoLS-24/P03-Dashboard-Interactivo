@@ -8,7 +8,6 @@ interface BarChartProps {
   height?: number
 }
 
-// Barras horizontales: las subcategorías que más venden (la primera en verde)
 function BarChart({ data, limit = 6, height = 230 }: BarChartProps) {
   const top = data.slice(0, limit)
   const names = top.map((d) => d.name)
@@ -25,7 +24,7 @@ function BarChart({ data, limit = 6, height = 230 }: BarChartProps) {
           scaleType: 'band',
           data: names,
           width: 92,
-          // Colorea cada barra según su posición: la mayor en verde, el resto en gris
+          // La barra mayor en verde, el resto en gris
           colorMap: { type: 'ordinal', values: names, colors: [ACCENT, ...names.slice(1).map(() => GREYS[1])] },
         },
       ]}
