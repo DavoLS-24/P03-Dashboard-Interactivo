@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Box, Chip, Typography } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import BarChartIcon from '@mui/icons-material/BarChart'
 
 interface HeaderProps {
@@ -35,7 +35,6 @@ function Header({ title, subtitle, actions }: HeaderProps) {
             / Analítica de ventas
           </Typography>
         </Box>
-        <Chip label="DATOS DE EJEMPLO" size="small" variant="outlined" />
       </Box>
 
       <Box

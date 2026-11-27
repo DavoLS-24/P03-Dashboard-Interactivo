@@ -11,7 +11,6 @@ interface LineChartProps {
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
-// Serie temporal de ventas mensuales, con el total de cada año debajo
 function LineChart({ data, yearTotals, height = 300 }: LineChartProps) {
   const singleYear = yearTotals.length === 1
 
@@ -47,11 +46,9 @@ function LineChart({ data, yearTotals, height = 300 }: LineChartProps) {
             valueFormatter: (v) => (v == null ? '' : formatCompactMoney(v)),
           },
         ]}
-        // Área suave debajo de la línea, como en el prototipo
         sx={{ [`& .${lineClasses.area}`]: { fillOpacity: 0.12 } }}
       />
 
-      {/* Total de cada año */}
       <Box
         sx={{
           display: 'grid',

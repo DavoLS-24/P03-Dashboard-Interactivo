@@ -1,11 +1,7 @@
 import { createTheme } from '@mui/material'
 
-// Tema global del dashboard, basado en el prototipo de Figma:
-// fondo oscuro, tarjetas gris oscuro y verde como color de acento.
 const theme = createTheme({
-  // El diseño pasa a móvil por debajo de 768 px (ver informe).
-  // Se cambia el punto "md" de MUI (900 px por defecto) a 768 px,
-  // así todos los componentes que usan { xs, md } cambian en el mismo punto.
+  // "md" en 768 px (MUI usa 900) para que la vista móvil empiece donde indica el diseño
   breakpoints: {
     values: { xs: 0, sm: 600, md: 768, lg: 1200, xl: 1536 },
   },

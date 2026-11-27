@@ -2,10 +2,9 @@ import { initializeApp } from 'firebase/app'
 import { getDatabase } from 'firebase/database'
 import type { Database } from 'firebase/database'
 
-// URL de Realtime Database (consola de Firebase -> Realtime Database -> pestaña "Datos")
 export const DATABASE_URL = 'https://project-data-4f094-default-rtdb.firebaseio.com'
 
-// Configuración del proyecto (no es secreta: el acceso lo controlan las reglas)
+// No es secreta: el acceso lo controlan las reglas de la base de datos
 const firebaseConfig = {
   apiKey: 'AIzaSyD_HM_CmtdY4gH7gZhBTAZ-w0Ek9uVNT90',
   authDomain: 'project-data-4f094.firebaseapp.com',
@@ -18,6 +17,5 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
-// Mientras no haya URL, la base de datos queda en null y el servicio
-// muestra un mensaje de error claro en lugar de fallar sin avisar.
+// Sin URL queda en null y el servicio muestra un error claro
 export const database: Database | null = DATABASE_URL ? getDatabase(app) : null
